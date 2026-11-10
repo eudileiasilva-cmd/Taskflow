@@ -1,0 +1,228 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:linear-gradient(135deg,#172554,#4f46e5);
+ min-height:100vh;
+ padding:25px 15px;
+ color:#222;
+}
+.container{
+ max-width:450px;
+ margin:35px auto;
+ background:white;
+ padding:25px;
+ border-radius:20px;
+ box-shadow:0 10px 30px #0003;
+}
+h1{text-align:center;color:#4338ca}
+p{text-align:center;color:#666}
+input{
+ width:100%;
+ padding:14px;
+ margin:9px 0;
+ border:1px solid #ddd;
+ border-radius:10px;
+ font-size:16px;
+}
+button{
+ border:0;
+ border-radius:10px;
+ padding:12px;
+ cursor:pointer;
+ font-size:15px;
+ font-weight:bold;
+}
+.principal{
+ width:100%;
+ background:#4f46e5;
+ color:white;
+ margin-top:10px;
+}
+.item{
+ background:#f1f5f9;
+ padding:12px;
+ border-radius:10px;
+ margin-top:12px;
+}
+.item button{margin:8px 5px 0 0}
+.concluir{background:#16a34a;color:white}
+.excluir{background:#dc2626;color:white}
+.feita{text-decoration:line-through;color:#888}
+.escondido{display:none}
+</style>
+</head>
+<body>
+
+<div class="container" id="login">
+<h1>TaskFlow</h1>
+<p>Organize suas tarefas!</p>
+
+<input id="nome" type="text" placeholder="Seu nome">
+<input id="email" type="email" placeholder="Seu e-mail">
+<input id="senha" type="password" placeholder="Sua senha">
+
+<button class="principal" onclick="cadastrar()">Cadastrar</button>
+<button class="principal" onclick="entrar()">Entrar</button>
+</div>
+
+<div class="container escondido" id="painel">
+<h1>Minhas tarefas</h1>
+<p id="boasVindas">Organize seu dia com facilidade.</p>
+
+<input id="nova" placeholder="Digite uma tarefa">
+<button class="principal" onclick="adicionar()">Adicionar tarefa</button>
+
+<div id="lista"></div>
+<button class="principal" onclick="sair()">Sair</button>
+</div>
+
+<script>
+let tarefas=[];
+let usuario="";
+
+async function cadastrar(){
+ let nome=document.getElementById("nome").value.trim();
+ let email=document.getElementById("email").value.trim();
+ let senha=document.getElementById("senha").value;
+
+ if(!nome || !email || !senha){
+  alert("Preencha nome, e-mail e senha!");
+  return;
+ }
+
+ let dados=new FormData();
+ dados.append("nome",nome);
+ dados.append("email",email);
+ dados.append("senha",senha);
+
+ try{
+  let resposta=await fetch("cadastrar.php",{
+   method:"POST",
+   body:dados
+  });
+  let resultado=await resposta.json();
+  alert(resultado.mensagem);
+ }catch(erro){
+  alert("Não foi possível conectar ao servidor.");
+ }
+}
+
+async function entrar(){
+ let email=document.getElementById("email").value.trim();
+ let senha=document.getElementById("senha").value;
+
+ if(!email || !senha){
+  alert("Preencha seu e-mail e senha!");
+  return;
+ }
+
+ let dados=new FormData();
+ dados.append("email",email);
+ dados.append("senha",senha);
+
+ try{
+  let resposta=await fetch("login.php",{
+   method:"POST",
+   body:dados
+  });
+  let resultado=await resposta.json();
+
+  if(!resultado.sucesso){
+   alert(resultado.mensagem);
+   return;
+  }
+
+  usuario=resultado.email;
+  tarefas=JSON.parse(localStorage.getItem("tarefas_"+usuario)||"[]");
+
+  document.getElementById("boasVindas").textContent=
+   "Olá, "+resultado.nome+"! Organize seu dia.";
+
+  document.getElementById("login").classList.add("escondido");
+  document.getElementById("painel").classList.remove("escondido");
+  mostrar();
+
+ }catch(erro){
+  alert("Não foi possível conectar ao servidor.");
+ }
+}
+
+function salvar(){
+ localStorage.setItem("tarefas_"+usuario,JSON.stringify(tarefas));
+}
+
+function adicionar(){
+ let campo=document.getElementById("nova");
+ let nome=campo.value.trim();
+
+ if(!nome){
+  alert("Digite uma tarefa!");
+  return;
+ }
+
+ tarefas.push({nome:nome,feita:false});
+ campo.value="";
+ salvar();
+ mostrar();
+}
+
+function concluir(i){
+ tarefas[i].feita=!tarefas[i].feita;
+ salvar();
+ mostrar();
+}
+
+function excluir(i){
+ tarefas.splice(i,1);
+ salvar();
+ mostrar();
+}
+
+function mostrar(){
+ let lista=document.getElementById("lista");
+ lista.innerHTML="";
+
+ tarefas.forEach((t,i)=>{
+  let item=document.createElement("div");
+  item.className="item";
+
+  let nome=document.createElement("span");
+  nome.textContent=t.nome;
+
+  if(t.feita) nome.className="feita";
+
+  let concluirBtn=document.createElement("button");
+  concluirBtn.className="concluir";
+  concluirBtn.textContent=t.feita?"Reabrir":"Concluir";
+  concluirBtn.onclick=()=>concluir(i);
+
+  let excluirBtn=document.createElement("button");
+  excluirBtn.className="excluir";
+  excluirBtn.textContent="Excluir";
+  excluirBtn.onclick=()=>excluir(i);
+
+  item.append(nome,document.createElement("br"),concluirBtn,excluirBtn);
+  lista.appendChild(item);
+ });
+}
+
+function sair(){
+ document.getElementById("painel").classList.add("escondido");
+ document.getElementById("login").classList.remove("escondido");
+ document.getElementById("email").value="";
+ document.getElementById("senha").value="";
+ document.getElementById("nome").value="";
+ usuario="";
+}
+</script>
+</body>
+</html>
